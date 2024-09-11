@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="TaptheLink" />
+    <meta name="twitter:title" content="TaptheLink - open apps directly" />
+    <meta
+      name="twitter:description"
+      content="A tap on your link can send users directly to apps"
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TaptheLink" />
+    <meta property="og:title" content="TaptheLink - open apps directly" />
+    <meta
+      property="og:description"
+      content="A tap on your link can send users directly to apps"
+    />
+    <meta property="og:url" content="" />
+    <meta property="twitter:url" content="" />
+
+    <script>
+      const links = {
+        // Youtube videos
+        ytv: {
+          android: `intent://youtube.com/watch?v=$@ID#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=https://www.youtube.com/watch?v=$@ID;end`,
+          ios: `youtube://www.youtube.com/watch?v=$@ID`,
+          web: `https://www.youtube.com/watch?v=$@ID`,
+        },
+        // Facebook groups
+        fbg: {
+          android: `fb://group/?id=$@ID`,
+          ios: `fb://group/?id=$@ID`,
+          web: `https://www.facebook.com/groups/$@ID`,
+        },
+      };
+
+      // Function to get URL parameters
+      function getParameterByName(name, url = window.location.href) {
+        name = name.replace(/[\[\]]/g, "\\$&");
+        const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)");
+        const results = regex.exec(url);
+        if (!results) return null;
+        return results[2]
+          ? decodeURIComponent(results[2].replace(/\+/g, " "))
+          : "";
+      }
+
+      // Function to set meta tag content
+      function setMetaTag(name, content) {
+        const metaTag = document.querySelector(`meta[property="${name}"]`);
+        if (metaTag) {
+          metaTag.setAttribute("content", content);
+        }
+      }
+
+      function detectPlatform() {
+        const userAgent =
+          navigator.userAgent || navigator.vendor || window.opera;
+        if (/android/i.test(userAgent)) {
+          return "android";
+        }
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+          return "ios";
+        }
+        return "web"; // Default to web if no specific platform is detected
+      }
+
+      // Function to handle app link redirection
+      function handleRedirection() {
+        const param = getParameterByName("t"); // Get type and ID from the parameter
+
+        if (!param) {
+          console.error("Missing type parameter");
+          return;
+        }
+
+        const [type, id] = param.split(":");
+        if (!type || !id || !links[type]) {
+          console.error("Invalid parameter format");
+          return;
+        }
+
+        const redirectLinks = links[type];
+        const webLink = redirectLinks.web.replace("$@ID", id);
+
+        const start = Date.now();
+
+        function isMobile() {
+          return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        function noAppFound() {
+          const elapsedTime = Date.now() - start;
+
+          if (elapsedTime > 500) {
+            // Redirect to the web fallback link if less than or equal to 500 milliseconds have passed
+            window.location.replace(webLink);
+          }
+        }
+
+        if (isMobile()) {
+          const platform = detectPlatform();
+          const appLink = redirectLinks[platform].replace("$@ID", id);
+
+          // Mobile users (Android and iOS): try to open in app
+          window.location.replace(appLink);
+          setTimeout(noAppFound, 501);
+        } else {
+          // Non-mobile users: redirect to web page
+          window.location.replace(webLink);
+        }
+
+        setMetaTag("twitter:url", webLink);
+        setMetaTag("og:url", webLink);
+      }
+
+      document.addEventListener("DOMContentLoaded", handleRedirection);
+    </script>
+  </head>
+  <body></body>
+</html>
